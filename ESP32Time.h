@@ -26,46 +26,8 @@
 #define ESP32TIME_H
 
 #include <Arduino.h>
-#include <ctime>
 
-static int calculate_yday(int year, int month, int day) {
-    int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    int yday = 0;
-    if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
-        daysInMonth[1] = 29;  // February has 29 days in a leap year
-    }
-    for (int i = 0; i < month - 1; i++) {
-        yday += daysInMonth[i];
-    }
-    yday += day;
-    return yday;
-}
-static unsigned long parse_time(const char* compilationTime) {
-	const char months[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
-
-    struct std::tm tm = {};
-    memset(&tm, 0, sizeof(struct tm));
-    char month[4];
-    int day, year, hour, minute, second;
-
-    sscanf(compilationTime, "%s %d %d %d:%d:%d",
-           month, &day, &year, &hour, &minute, &second);
-
-	tm.tm_mon = ((strstr(months, month) - months) / 3) + 1;
-    tm.tm_mday = day;
-    tm.tm_year = year - 1900;
-    tm.tm_hour = hour;
-    tm.tm_min = minute;
-    tm.tm_sec = second;
-    tm.tm_yday = calculate_yday(year, tm.tm_mon, day - 1);
- 
-	unsigned long epoch = tm.tm_sec + tm.tm_min*60 + tm.tm_hour*3600 + tm.tm_yday*86400 +
-     (tm.tm_year-70)*31536000 + ((tm.tm_year-69)/4)*86400 -
-     ((tm.tm_year-1)/100)*86400 + ((tm.tm_year+299)/400)*86400;
-     
-     return epoch;
-}
-
+unsigned long parse_time(const char* compilationTime);
 #define COMPILATION_EPOCH() (parse_time(__DATE__ " " __TIME__))
 
 class ESP32Time {
@@ -77,6 +39,7 @@ class ESP32Time {
 		void setTime(int sc, int mn, int hr, int dy, int mt, int yr, int ms = 0);
 		void setTimeStruct(tm t);
 		tm getTimeStruct();
+		tm* get_time_struct();
 		String getTime(String format);
 		
 		String getTime();
@@ -88,6 +51,7 @@ class ESP32Time {
 		unsigned long getEpoch();
 		unsigned long getMillis();
 		unsigned long getMicros();
+		static unsigned long calculateEpoch(tm t);
 		int getSecond();
 		int getMinute();
 		int getHour(bool mode = false);
@@ -96,6 +60,7 @@ class ESP32Time {
 		int getDayofYear();
 		int getMonth();
 		int getYear();
+		static int calculateYday(int year, int month, int day);
 		
 		unsigned long offset = 0;
 		unsigned long getLocalEpoch();

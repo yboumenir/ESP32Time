@@ -26,6 +26,29 @@
 #include "time.h"
 #include <sys/time.h>
 
+#include <ctime>
+unsigned long parse_time(const char* compilationTime) {
+	const char months[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+
+    struct std::tm tm = {};
+    memset(&tm, 0, sizeof(struct tm));
+    char month[4];
+    int day, year, hour, minute, second;
+
+    sscanf(compilationTime, "%s %d %d %d:%d:%d",
+           month, &day, &year, &hour, &minute, &second);
+
+	tm.tm_mon = ((strstr(months, month) - months) / 3) + 1;
+    tm.tm_mday = day;
+    tm.tm_year = year - 1900;
+    tm.tm_hour = hour;
+    tm.tm_min = minute;
+    tm.tm_sec = second;
+    tm.tm_yday = ESP32Time::calculateYday(year, tm.tm_mon, day - 1);
+ 
+     return ESP32Time::calculateEpoch(tm);
+}
+
 /*!
     @brief  Constructor for ESP32Time
 */
@@ -110,14 +133,14 @@ void ESP32Time::setTime(unsigned long epoch, int ms) {
 */
 tm ESP32Time::getTimeStruct(){
   struct tm timeinfo;
-  memset(&timeinfo, 0, sizeof( struct tm));
+//   memset(&timeinfo, 0, sizeof( struct tm));
   time_t now;
   time(&now);
   localtime_r(&now, &timeinfo);
   
 //   Serial.print("The current date/time is ");
 //   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-  time_t tt = mktime (&timeinfo);
+  time_t tt = mktime(&timeinfo);
     
   if (this->overflow){
 	  tt += 63071999;
@@ -128,6 +151,28 @@ tm ESP32Time::getTimeStruct(){
 	  tn->tm_year += 64;
   }
   return *tn;
+}
+
+tm* ESP32Time::get_time_struct(){
+  struct tm timeinfo;
+  memset(&timeinfo, 0, sizeof( struct tm));
+  time_t now;
+  time(&now);
+  localtime_r(&now, &timeinfo);
+  
+//   Serial.print("The current date/time is ");
+//   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+  time_t tt = mktime(&timeinfo);
+    
+  if (this->overflow){
+	  tt += 63071999;
+  }
+  tt += offset;
+  struct tm * tn = localtime(&tt);
+  if (this->overflow){
+	  tn->tm_year += 64;
+  }
+  return tn;
 }
 
 /*!
@@ -237,8 +282,31 @@ unsigned long ESP32Time::getMicros(){
     @brief  get the current epoch seconds as unsigned long
 */
 unsigned long ESP32Time::getEpoch(){
-	struct tm timeinfo = getTimeStruct();
-	return mktime(&timeinfo);
+    struct tm *timeinfo = get_time_struct();
+    if(timeinfo != nullptr)
+	    return calculateEpoch(*timeinfo);
+	 else
+	    return 0;
+}
+
+int ESP32Time::calculateYday(int year, int month, int day) {
+    int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int yday = 0;
+    if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
+        daysInMonth[1] = 29;  // February has 29 days in a leap year
+    }
+    for (int i = 0; i < month - 1; i++) {
+        yday += daysInMonth[i];
+    }
+    yday += day;
+    return yday;
+}
+
+unsigned long  ESP32Time::calculateEpoch(tm t) {
+    unsigned long epoch = t.tm_sec + t.tm_min*60 + t.tm_hour*3600 + t.tm_yday*86400 +
+     (t.tm_year-70)*31536000 + ((t.tm_year-69)/4)*86400 -
+     ((t.tm_year-1)/100)*86400 + ((t.tm_year+299)/400)*86400;
+     return epoch;
 }
 
 /*!
