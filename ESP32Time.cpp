@@ -29,7 +29,9 @@
 /*!
     @brief  Constructor for ESP32Time
 */
-ESP32Time::ESP32Time(){}
+ESP32Time::ESP32Time(){
+  setTime(COMPILATION_EPOCH());
+}
 
 /*!
     @brief  Constructor for ESP32Time
@@ -60,7 +62,8 @@ ESP32Time::ESP32Time(unsigned long offset){
 void ESP32Time::setTime(int sc, int mn, int hr, int dy, int mt, int yr, int ms) {
   // seconds, minute, hour, day, month, year $ microseconds(optional)
   // ie setTime(20, 34, 8, 1, 4, 2021) = 8:34:20 1/4/2021
-  struct tm t = {0};        // Initalize to all 0's
+  struct tm t;
+  memset(&t, 0, sizeof(struct tm));
   t.tm_year = yr - 1900;    // This is year-1900, so 121 = 2021
   t.tm_mon = mt - 1;
   t.tm_mday = dy;
@@ -90,14 +93,16 @@ void ESP32Time::setTimeStruct(tm t) {
 */
 void ESP32Time::setTime(unsigned long epoch, int ms) {
   struct timeval tv;
+  memset(&tv, 0, sizeof( struct timeval));
   if (epoch > 2082758399){
 	  this->overflow = true;
 	  tv.tv_sec = epoch - 2082758399;  // epoch time (seconds)
   } else {
 	  tv.tv_sec = epoch;  // epoch time (seconds)
   }
-  tv.tv_usec = ms;    // microseconds
-  settimeofday(&tv, NULL);
+  
+  tv.tv_usec = ms * 1000;  // Convert milliseconds to microseconds
+  settimeofday(&tv, NULL);   
 }
 
 /*!
@@ -105,9 +110,13 @@ void ESP32Time::setTime(unsigned long epoch, int ms) {
 */
 tm ESP32Time::getTimeStruct(){
   struct tm timeinfo;
+  memset(&timeinfo, 0, sizeof( struct tm));
   time_t now;
   time(&now);
   localtime_r(&now, &timeinfo);
+  
+//   Serial.print("The current date/time is ");
+//   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
   time_t tt = mktime (&timeinfo);
     
   if (this->overflow){
@@ -284,7 +293,6 @@ int ESP32Time::getHour(bool mode){
 		{
 			return timeinfo.tm_hour;
 		}
-		
 	}
 }
 
